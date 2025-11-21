@@ -28,6 +28,12 @@ def obter_conexao():
         print(f"❌ Erro inesperado ao conectar ao banco de dados: {str(e)}")
         raise Exception(f"Erro inesperado ao conectar ao banco de dados: {str(e)}") from e
 
+def get_connection():
+    """
+    Função alias para obter_conexao() para compatibilidade com os controllers.
+    """
+    return obter_conexao()
+
 if __name__ == "__main__":
     try:
         conn = obter_conexao()
