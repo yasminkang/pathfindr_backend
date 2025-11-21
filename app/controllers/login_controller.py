@@ -10,16 +10,35 @@ class LoginInput(BaseModel):
 
 @router.post("/usuarios/login")
 async def login_usuario(login_input: LoginInput):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT ID_USUARIO FROM PATHFINDR_USUARIOS WHERE EMAIL_USUARIO = :1 AND SENHA_USUARIO = :2",
-        (login_input.email_usuario, login_input.senha_usuario)
-    )
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    if row:
-        return {"mensagem": "Login bem-sucedido", "id_usuario": row[0], "email_usuario": login_input.email_usuario}
-    else:
-        raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT ID_USUARIO FROM PATHFINDR_USUARIOS WHERE EMAIL_USUARIO = :1 AND SENHA_USUARIO = :2",
+            (login_input.email_usuario, login_input.senha_usuario)
+        )
+        row = cursor.fetchone()
+        
+        if row:
+            return {
+                "mensagem": "Login bem-sucedido",
+                "id_usuario": row[0],
+                "email_usuario": login_input.email_usuario
+            }
+        else:
+            raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+            
+    except HTTPException:
+        # Re-raise HTTPExceptions (como 401)
+        raise
+    except Exception as e:
+        # Trata outros erros
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer login: {str(e)}")
+    finally:
+        # Fecha cursor e conexão
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
