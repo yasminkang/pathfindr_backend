@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.controllers.usuario_controller import router as usuario_router
-from app.controllers.login_controller import router as login_router
-import os
 from fastapi.responses import Response
+import os
+import logging
 
-# 1. 先创建 app 实例（必须在所有 @app.xxx 装饰器之前）
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="Game Starter API",
     description="API para sistema de login com auditoria",
@@ -14,12 +15,10 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# 2. 再定义 favicon 接口（现在 app 已存在，不会报错）
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(status_code=204)
 
-# 3. 后续配置不变
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -35,8 +34,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(usuario_router)
-app.include_router(login_router)
+try:
+    from app.controllers.usuario_controller import router as usuario_router
+    from app.controllers.login_controller import router as login_router
+    
+    app.include_router(usuario_router)
+    app.include_router(login_router)
+    logger.info("✅ Rotas de controllers registradas com sucesso!")
+except Exception as e:
+    logger.error(f"❌ Falha ao importar rotas: {str(e)}", exc_info=True)
+    raise
 
 @app.get("/")
 async def root():
@@ -52,10 +59,19 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        log_level="info" 
-    )
+    logger.info(f"🚀 Iniciando servidor na porta: {port}")
+    
+    try:
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0", 
+            port=port,
+            log_level="info",
+            reload=False,
+            workers=1 
+        )
+    except Exception as e:
+        logger.error(f"❌ Falha ao iniciar servidor: {str(e)}", exc_info=True)
+        raise
