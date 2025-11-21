@@ -8,10 +8,7 @@ def obter_conexao():
         conexao = oracledb.connect(
             user=DB_USER,
             password=DB_PASSWORD,
-            dsn=dsn,
-            ssl_server_dn_match=False, 
-            ssl_version=oracledb.SSLVersion.TLSv1_2,
-            timeout=10 
+            dsn=dsn
         )
         print(f"✅ Conexão com o banco de dados bem-sucedida! Usuário: {DB_USER}, Host: {DB_HOST}")
         return conexao
