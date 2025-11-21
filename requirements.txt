@@ -3,3 +3,4 @@ uvicorn
 oracledb
 python-dotenv
 email-validator
+python-dotenv==1.0.0

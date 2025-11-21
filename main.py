@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.controllers.usuario_controller import router as usuario_router
 from app.controllers.login_controller import router as login_router
+import os
 
 app = FastAPI(
     title="Game Starter API",
@@ -11,7 +12,6 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS configuração para acessar do frontend (ajuste as URLs permitidas se quiser)
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -21,13 +21,12 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # coloque uma lista com suas origens confiáveis depois do teste
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Inclui os routers dos controllers criados
 app.include_router(usuario_router)
 app.include_router(login_router)
 
@@ -42,3 +41,13 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        log_level="info" 
+    )
