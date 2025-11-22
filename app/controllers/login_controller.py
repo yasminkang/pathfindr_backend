@@ -6,67 +6,49 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-class UsuarioCreate(BaseModel):
+class LoginInput(BaseModel):
     email_usuario: EmailStr
     senha_usuario: str
 
-@router.post("/usuarios/cadastrar")
-async def cadastrar_usuario(usuario: UsuarioCreate):
+@router.post("/usuarios/login")
+async def login_usuario(login_input: LoginInput):
     """
-    Cadastra um novo usuário em PATHFINDR_USUARIOS.
-    O ID é gerado de forma sequencial.
+    Faz login do usuário verificando email e senha no banco de dados.
+    Retorna erro 401 se as credenciais forem inválidas.
     """
     conn = None
     cursor = None
     try:
-        logger.info(f"Tentando cadastrar usuário: {usuario.email_usuario}")
+        logger.info(f"Tentando fazer login: {login_input.email_usuario}")
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Gera novo ID sequencialmente
-        logger.info("Gerando novo ID de usuário...")
-        cursor.execute("SELECT NVL(MAX(ID_USUARIO), 0) + 1 FROM PATHFINDR_USUARIOS")
-        novo_id = cursor.fetchone()[0]
-        logger.info(f"Novo ID gerado: {novo_id}")
-        
-        # Insere o novo usuário
-        logger.info("Inserindo usuário no banco...")
+        # Busca o usuário no banco de dados
         cursor.execute(
-            "INSERT INTO PATHFINDR_USUARIOS (ID_USUARIO, EMAIL_USUARIO, SENHA_USUARIO) VALUES (:1, :2, :3)",
-            (novo_id, usuario.email_usuario, usuario.senha_usuario)
+            "SELECT ID_USUARIO, EMAIL_USUARIO FROM PATHFINDR_USUARIOS WHERE EMAIL_USUARIO = :1 AND SENHA_USUARIO = :2",
+            (login_input.email_usuario, login_input.senha_usuario)
         )
-        conn.commit()
-        logger.info(f"Usuário cadastrado com sucesso! ID: {novo_id}")
+        row = cursor.fetchone()
         
-        return {"mensagem": "Usuário cadastrado com sucesso", "id_usuario": novo_id}
-        
+        if row:
+            # Usuário encontrado e senha correta
+            logger.info(f"Login bem-sucedido para usuário ID: {row[0]}")
+            return {
+                "mensagem": "Login bem-sucedido",
+                "id_usuario": row[0],
+                "email_usuario": row[1]
+            }
+        else:
+            # Usuário não encontrado ou senha incorreta
+            logger.warning(f"Tentativa de login falhou para: {login_input.email_usuario}")
+            raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+            
+    except HTTPException:
+        # Re-raise HTTPExceptions (como 401)
+        raise
     except Exception as e:
-        # Log do erro completo
-        logger.error(f"Erro ao cadastrar usuário: {str(e)}", exc_info=True)
-        
-        # Rollback em caso de erro
-        if conn:
-            try:
-                conn.rollback()
-            except:
-                pass
-        
-        error_msg = str(e).lower()
-        
-        # Trata erro de email duplicado
-        if 'unique constraint' in error_msg or 'ora-00001' in error_msg:
-            logger.warning(f"Tentativa de cadastrar email duplicado: {usuario.email_usuario}")
-            raise HTTPException(status_code=400, detail="E-mail já cadastrado")
-        
-        # Trata outros erros do Oracle
-        if 'ora-' in error_msg:
-            logger.error(f"Erro Oracle: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Erro no banco de dados Oracle: {str(e)}")
-        
-        # Erro genérico - retorna mensagem mais detalhada
-        logger.error(f"Erro genérico: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro ao cadastrar usuário: {type(e).__name__}: {str(e)}")
-        
+        logger.error(f"Erro ao fazer login: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer login: {str(e)}")
     finally:
         # Fecha cursor e conexão
         if cursor:
